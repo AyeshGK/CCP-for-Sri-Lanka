@@ -27,7 +27,8 @@ class MoneyAgent(mesa.Agent):
         self.reward = 0
         self.trader = 0
         self.time_left = 0
-        
+        self.credit_default_statues = 'No'
+
     def Zero_intel(self):
         prev_market_price = self.market_price
         # three states defined for the hold,buy,sell as [0,1,2]
@@ -70,6 +71,9 @@ class MoneyAgent(mesa.Agent):
             self.state_price = self.Zero_intel()
         elif self.type == "zero_intel_reward":
             self.state_price = self.zero_intel_reward()
+            
+        # change the state of credit_default
+        self.credit_default_statues = random.choice(['Yes','No'])
 
     def step(self):
         # The agent's step will go here.
@@ -85,6 +89,8 @@ class MoneyModel(mesa.Model):
         self.Reward_agents = Reward_agents
         self.schedule = mesa.time.RandomActivation(self)
         self.market_price = market_price
+        self.CCP_wealth = 1000
+        
         # Create agents
         for i in range(self.Zero_agents):
             a = MoneyAgent(i, self, self.market_price, "zero_intel")
@@ -100,13 +106,22 @@ class MoneyModel(mesa.Model):
         self.datacollector = DataCollector(
             model_reporters={
                 'list_market_price': "market_price"})
-    def CCP(self):
-        
-        return
+    
 
     def market(self):
         market_price = self.market_price
         Agents = self.schedule.agents
+        ccp_wealth = self.CCP_wealth
+        
+        def CCP(ccp_wealth,Agents):
+            Agent =  Agents.ID
+            if credit_default == 'Yes':
+                ccp_wealth -= Agent.shares *Agent.market_price
+            return ccp_wealth, Agents
+        
+        def credit_default(Agent):
+            
+            return
 
         def get_transaction_agents(Agents):
 
