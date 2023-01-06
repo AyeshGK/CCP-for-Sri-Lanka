@@ -25,9 +25,10 @@ class MoneyAgent(mesa.Agent):
         self.type = agent_type
         self.market_price = market_price
         self.reward = 0
-        self.trader = 0
-        self.time_left = 0
-        self.credit_default_statues = 'No'
+        
+        # credit_default list contains,
+        # [going for a credit default or not , hold | buy or sell , if yes with whom , time left to the transaction ,share price]
+        self.credit_default = ['No' , 0 , 0 , 0 ,10]
 
     def Zero_intel(self):
         prev_market_price = self.market_price
@@ -52,6 +53,7 @@ class MoneyAgent(mesa.Agent):
         states = [0, 1, 2]
         reward = self.reward
         prev_market_price = self.market_price
+        
         # three states defined for the hold,buy,sell as [0,1,2]
         random_State = random.choice(states)
         states.remove(self.state_price[0])
@@ -64,6 +66,14 @@ class MoneyAgent(mesa.Agent):
             return self.state_price[0], price
         elif reward == -1:
             return random_state_1, price
+        
+    def update_credit_default(self):
+        status = random.choice(['Yes','No'])
+        state = random.choice([0,1,2])
+        previous_credit_default =  self.credit_default
+        updated_list = [status] + [state] + previous_credit_default[2:]
+        self.credit_default = updated_list
+        
     
 
     def state_control(self):
@@ -73,11 +83,10 @@ class MoneyAgent(mesa.Agent):
             self.state_price = self.zero_intel_reward()
             
         # change the state of credit_default
-        self.credit_default_statues = random.choice(['Yes','No'])
+        self.update_credit_default()
 
     def step(self):
         # The agent's step will go here.
-
         self.state_control()
 
 
@@ -113,15 +122,25 @@ class MoneyModel(mesa.Model):
         Agents = self.schedule.agents
         ccp_wealth = self.CCP_wealth
         
-        def CCP(ccp_wealth,Agents):
-            Agent =  Agents.ID
+        def CCP(ccp_wealth,Agents_ID):
+
             if credit_default == 'Yes':
-                ccp_wealth -= Agent.shares *Agent.market_price
+                ccp_wealth -= Agent.shares * Agent.market_price
             return ccp_wealth, Agents
         
         def credit_default(Agent):
+            state = Agent.state
+            time_left = Agent.time
             
-            return
+            if time_left <= 0:
+                CCP()
+            else:
+                if state == 1:
+                    Buy_process
+                elif state == 2:
+                    sale_process
+                
+
 
         def get_transaction_agents(Agents):
 
@@ -182,7 +201,7 @@ class MoneyModel(mesa.Model):
                 market_price = Agent_sell.state_price[1]
                 self.market_price = market_price
 
-        # print(market_price)
+        
 
     def Update_wealth(self):
         market_price = self.market_price
@@ -223,8 +242,7 @@ for i in range(iterations):
 
     agent_wealth = [a.wealth for a in model.schedule.agents]
     agent_reward = [a.reward for a in model.schedule.agents]
-    print(agent_wealth)
-    print(agent_reward)
+    agent_credit_default = [a.credit_default for a in model.schedule.agents]
     average_wealth_zero = sum(agent_wealth[:Zero_agents])/Zero_agents
     list_avg_zero.append(average_wealth_zero)
     average_wealth_reward = sum(agent_wealth[Zero_agents:Zero_agents+Reward_agents])/Reward_agents
@@ -253,7 +271,8 @@ for i in range(iterations):
     plt.clf()
     worksheet_wealth.write_row(i, 0, agent_wealth)
     worksheet_reward.write_row(i, 0, agent_reward)
-    
+    print(agent_credit_default)
+
 
 
 plt.show()
