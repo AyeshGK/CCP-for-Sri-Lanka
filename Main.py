@@ -25,6 +25,8 @@ class MoneyAgent(mesa.Agent):
         self.type = agent_type
         self.market_price = market_price
         self.reward = 0
+        self.CCP_credit_max = 35*0.3
+        self.CCP_credit= 0
         
         # credit_default list contains,
         # [going for a credit default or not , hold | buy or sell , if yes with whom , time left to the transaction ,share price]
@@ -73,7 +75,9 @@ class MoneyAgent(mesa.Agent):
         previous_credit_default =  self.credit_default
         updated_list = [status] + [state] + previous_credit_default[2:]
         self.credit_default = updated_list
-        
+    
+    def Update_CCP_wealth(self):
+            self.CCP_credit_max = self.wealth * (0.3)    
     
 
     def state_control(self):
@@ -88,6 +92,7 @@ class MoneyAgent(mesa.Agent):
     def step(self):
         # The agent's step will go here.
         self.state_control()
+        self.Update_CCP_wealth()
 
 
 class MoneyModel(mesa.Model):
@@ -134,11 +139,7 @@ class MoneyModel(mesa.Model):
             
             if time_left <= 0:
                 CCP()
-            else:
-                if state == 1:
-                    Buy_process
-                elif state == 2:
-                    sale_process
+        
                 
 
 
@@ -188,7 +189,24 @@ class MoneyModel(mesa.Model):
             agent_buy.wealth = agent_buy.cash + \
                 (agent_buy.state_price[1])*agent_buy.shares
             return
+        
+        def credit_transaction(agent_sell, agent_buy):
+            # update selling agent
+            agent_sell.shares = agent_sell.shares - 1
+            agent_sell.state = 0
+            agent_sell.cash = agent_sell.cash + (agent_sell.state_price[1])*1
+            agent_sell.wealth = agent_sell.cash + \
+                (agent_sell.state_price[1])*agent_sell.shares
 
+            # update Buying agent
+            agent_buy.shares = agent_buy.shares + 1
+            agent_buy.state = 0
+            agent_buy.CCP_credit = -(agent_buy.state_price[1])*1
+            agent_buy.wealth = agent_buy.cash + \
+                (agent_buy.state_price[1])*agent_buy.shares
+        
+        
+            
         buy_Sell_agents = get_transaction_agents(Agents)
         for buy_Sell_agent in buy_Sell_agents:
             Agent_buy = Agents[buy_Sell_agent[0]]
@@ -200,6 +218,13 @@ class MoneyModel(mesa.Model):
                 print(print_str)
                 market_price = Agent_sell.state_price[1]
                 self.market_price = market_price
+            elif(Agent_buy.cash < Agent_buy.state_price[1]) & (Agent_sell.shares > 0) & (Agent_buy.CCP_credit_max > Agent_buy.cash):
+                credit_transaction(Agent_sell, Agent_buy)
+                market_price = Agent_sell.state_price[1]
+                self.market_price = market_price
+                self.CCP_wealth = self.CCP_wealth - market_price
+                print("------------------------------------------")
+                
 
         
 
@@ -235,7 +260,7 @@ list_avg_zero = []
 list_avg_reward = []
 
 plt.figure(figsize=(18, 6))
-# fig = plt.figure("market price")
+
 for i in range(iterations):
     print("Day" + str(i+1) + ":")
     model.step()
